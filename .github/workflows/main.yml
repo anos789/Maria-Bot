@@ -47,3 +47,23 @@ jobs:
       with:
         name: MariaBot-Release-AAB
         path: app/build/outputs/bundle/release/*.aab
+
+    - name: Create GitHub Release and Upload Artifacts
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v1.0.0-build-${{ github.run_number }}
+        name: Maria Bot Build v1.0.0 (Run #${{ github.run_number }})
+        draft: false
+        prerelease: false
+        body: |
+          تلقائي: تم بناء التطبيق وتجهيزه للتثبيت الفوري.
+          
+          ### الروابط المباشرة للتحميل:
+          - 📦 **تحميل تطبيق ملف APK الموقّع للمطورين (يمكن تثبيته مباشرة):** قم بتحميل الملف من المرفقات أدناه باسم `app-debug.apk` لتثبيته فوراً على جهازك LT_9904.
+          - ⚙️ **ملف حزمة AAB المرفق:** للرفع لمتجر Google Play Console.
+        files: |
+          app/build/outputs/apk/debug/*.apk
+          app/build/outputs/apk/release/*.apk
+          app/build/outputs/bundle/release/*.aab
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
