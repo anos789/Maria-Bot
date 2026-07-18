@@ -18,6 +18,8 @@ class MainActivity : AppCompatActivity() {
         val settings = webView.settings
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
+        settings.allowFileAccess = true
+        settings.allowContentAccess = true
         settings.loadWithOverviewMode = true
         settings.useWideViewPort = true
         settings.builtInZoomControls = false
@@ -33,8 +35,8 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Load the shared development/production URL of Maria-Bot
-        webView.loadUrl("https://ais-pre-i3mqtqg3klqxbqhutlkenp-50095237477.europe-west2.run.app")
+        // Load the self-contained local build of Maria-Bot
+        webView.loadUrl("file:///android_asset/index.html")
     }
 
     @Deprecated("Deprecated in Java")

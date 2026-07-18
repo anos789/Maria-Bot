@@ -22,6 +22,18 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
+
+    - name: Build Web Application Frontend
+      run: |
+        npm install
+        npm run build
+        mkdir -p app/src/main/assets
+        cp -r dist/* app/src/main/assets/
+
     - name: Generate Gradle Wrapper
       run: gradle wrapper --gradle-version 8.4 --distribution-type all
 

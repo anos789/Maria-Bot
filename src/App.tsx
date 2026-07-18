@@ -25,24 +25,90 @@ import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'trading' | 'rewards' | 'build' | 'settings'>('trading');
-  const [mexcConfig, setMexcConfig] = useState<MEXCConfig>({
-    apiKey: '',
-    apiSecret: '',
-    isSandbox: true,
-    autoTransferRewards: true,
-    leverage: 20,
-    eventDurationMinutes: 10
+  // Load initial state from LocalStorage or defaults
+  const [mexcConfig, setMexcConfig] = useState<MEXCConfig>(() => {
+    const saved = localStorage.getItem('mexcConfig');
+    return saved ? JSON.parse(saved) : {
+      apiKey: '',
+      apiSecret: '',
+      isSandbox: true,
+      autoTransferRewards: true,
+      leverage: 20,
+      eventDurationMinutes: 10
+    };
   });
 
-  // State loaded from API
-  const [spotBalance, setSpotBalance] = useState({ USDT: 450.75, BTC: 0.0 });
-  const [futuresBalance, setFuturesBalance] = useState({ USDT: 1250.0, BTC: 0.05 });
-  const [btcPrice, setBtcPrice] = useState(64250.0);
-  const [priceHistory, setPriceHistory] = useState<number[]>([64210, 64230, 64220, 64245, 64235, 64250]);
-  const [activePositions, setActivePositions] = useState<TradePosition[]>([]);
-  const [closedPositions, setClosedPositions] = useState<TradePosition[]>([]);
-  const [rewardLogs, setRewardLogs] = useState<RewardTransferLog[]>([]);
-  const [botLogs, setBotLogs] = useState<BotLog[]>([]);
+  const [spotBalance, setSpotBalance] = useState(() => {
+    const saved = localStorage.getItem('spotBalance');
+    return saved ? JSON.parse(saved) : { USDT: 450.75, BTC: 0.0 };
+  });
+
+  const [futuresBalance, setFuturesBalance] = useState(() => {
+    const saved = localStorage.getItem('futuresBalance');
+    return saved ? JSON.parse(saved) : { USDT: 1250.0, BTC: 0.05 };
+  });
+
+  const [btcPrice, setBtcPrice] = useState(() => {
+    const saved = localStorage.getItem('btcPrice');
+    return saved ? parseFloat(saved) : 64250.0;
+  });
+
+  const [priceHistory, setPriceHistory] = useState<number[]>(() => {
+    const saved = localStorage.getItem('priceHistory');
+    return saved ? JSON.parse(saved) : [64210, 64230, 64220, 64245, 64235, 64250];
+  });
+
+  const [activePositions, setActivePositions] = useState<TradePosition[]>(() => {
+    const saved = localStorage.getItem('activePositions');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [closedPositions, setClosedPositions] = useState<TradePosition[]>(() => {
+    const saved = localStorage.getItem('closedPositions');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [rewardLogs, setRewardLogs] = useState<RewardTransferLog[]>(() => {
+    const saved = localStorage.getItem('rewardLogs');
+    return saved ? JSON.parse(saved) : [
+      {
+        id: "tx_1001",
+        amount: 12.50,
+        asset: "USDT",
+        fromAccount: "Spot Wallet (MEXC Rewards)",
+        toAccount: "Futures Wallet",
+        status: "SUCCESS",
+        timestamp: new Date(Date.now() - 3600000 * 4).toISOString()
+      },
+      {
+        id: "tx_1002",
+        amount: 5.25,
+        asset: "USDT",
+        fromAccount: "Spot Wallet (MEXC Rewards)",
+        toAccount: "Futures Wallet",
+        status: "SUCCESS",
+        timestamp: new Date(Date.now() - 3600000 * 24).toISOString()
+      }
+    ];
+  });
+
+  const [botLogs, setBotLogs] = useState<BotLog[]>(() => {
+    const saved = localStorage.getItem('botLogs');
+    return saved ? JSON.parse(saved) : [
+      {
+        id: "log_1",
+        timestamp: new Date(Date.now() - 120000).toISOString(),
+        type: "INFO",
+        message: "تطبيق مارية (Maria-Bot) قيد العمل والتأهب لحدث BTCUSDT."
+      },
+      {
+        id: "log_2",
+        timestamp: new Date(Date.now() - 90000).toISOString(),
+        type: "SUCCESS",
+        message: "تم إنشاء اتصال آمن بالشبكة المحلية لجهاز أندرويد LT_9904 بنجاح."
+      }
+    ];
+  });
 
   // Trading Input State
   const [orderAmount, setOrderAmount] = useState<string>('50');
@@ -60,15 +126,87 @@ export default function App() {
   // Command generator tool state (for Keystore conversion)
   const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
 
-  // Poll intervals
+  // Sync to LocalStorage
   useEffect(() => {
-    fetchState();
-    fetchConfig();
-    generateYaml();
+    localStorage.setItem('mexcConfig', JSON.stringify(mexcConfig));
+  }, [mexcConfig]);
 
+  useEffect(() => {
+    localStorage.setItem('spotBalance', JSON.stringify(spotBalance));
+  }, [spotBalance]);
+
+  useEffect(() => {
+    localStorage.setItem('futuresBalance', JSON.stringify(futuresBalance));
+  }, [futuresBalance]);
+
+  useEffect(() => {
+    localStorage.setItem('btcPrice', btcPrice.toString());
+  }, [btcPrice]);
+
+  useEffect(() => {
+    localStorage.setItem('priceHistory', JSON.stringify(priceHistory));
+  }, [priceHistory]);
+
+  useEffect(() => {
+    localStorage.setItem('activePositions', JSON.stringify(activePositions));
+  }, [activePositions]);
+
+  useEffect(() => {
+    localStorage.setItem('closedPositions', JSON.stringify(closedPositions));
+  }, [closedPositions]);
+
+  useEffect(() => {
+    localStorage.setItem('rewardLogs', JSON.stringify(rewardLogs));
+  }, [rewardLogs]);
+
+  useEffect(() => {
+    localStorage.setItem('botLogs', JSON.stringify(botLogs));
+  }, [botLogs]);
+
+  // Helper to add logs
+  const addLog = (type: 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR', message: string) => {
+    setBotLogs(prev => {
+      const newLogs = [
+        {
+          id: `log_${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          type,
+          message
+        },
+        ...prev
+      ];
+      if (newLogs.length > 100) newLogs.pop();
+      return newLogs;
+    });
+  };
+
+  // Price and Position PnL fluctuation loop
+  useEffect(() => {
     const interval = setInterval(() => {
-      fetchState();
-    }, 2000);
+      setBtcPrice(prevPrice => {
+        const change = (Math.random() - 0.5) * 45;
+        const newPrice = parseFloat((prevPrice + change).toFixed(2));
+        
+        // Update active positions PnL based on this new price
+        setActivePositions(prevPositions => {
+          return prevPositions.map(pos => {
+            const priceDiff = newPrice - pos.entryPrice;
+            const directionMult = pos.type === 'LONG' ? 1 : -1;
+            const rawReturn = (priceDiff / pos.entryPrice) * directionMult * pos.leverage;
+            const pnl = parseFloat((pos.amount * rawReturn).toFixed(2));
+            const pnlPercent = parseFloat((rawReturn * 100).toFixed(2));
+            return {
+              ...pos,
+              currentPrice: newPrice,
+              pnl,
+              pnlPercent
+            };
+          });
+        });
+
+        return newPrice;
+      });
+    }, 1500);
 
     return () => clearInterval(interval);
   }, []);
@@ -82,125 +220,260 @@ export default function App() {
     });
   }, [btcPrice]);
 
-  const fetchState = async () => {
-    try {
-      const res = await fetch('/api/mexc/state');
-      if (res.ok) {
-        const data = await res.json();
-        setSpotBalance(data.balances.spot);
-        setFuturesBalance(data.balances.futures);
-        setBtcPrice(data.price);
-        setActivePositions(data.activePositions);
-        setClosedPositions(data.closedPositions);
-        setRewardLogs(data.rewardLogs);
-        setBotLogs(data.logs);
-      }
-    } catch (e) {
-      console.error("Failed to fetch state", e);
-    }
-  };
+  // Checking for expired positions to auto-close
+  useEffect(() => {
+    const checkInterval = setInterval(() => {
+      const now = Date.now();
+      const durationMs = mexcConfig.eventDurationMinutes * 60 * 1000;
+      
+      setActivePositions(prevActive => {
+        const toClose: TradePosition[] = [];
+        const remaining: TradePosition[] = [];
+        
+        prevActive.forEach(pos => {
+          const startTime = new Date(pos.timestamp).getTime();
+          if (now - startTime >= durationMs) {
+            toClose.push(pos);
+          } else {
+            remaining.push(pos);
+          }
+        });
 
-  const fetchConfig = async () => {
-    try {
-      const res = await fetch('/api/mexc/config');
-      if (res.ok) {
-        const data = await res.json();
-        setMexcConfig(data);
-      }
-    } catch (e) {
-      console.error("Failed to fetch config", e);
-    }
-  };
+        if (toClose.length > 0) {
+          toClose.forEach(pos => {
+            const cost = pos.amount / pos.leverage;
+            const finalPrice = btcPrice;
+            const priceDiff = finalPrice - pos.entryPrice;
+            const directionMult = pos.type === 'LONG' ? 1 : -1;
+            const rawReturn = (priceDiff / pos.entryPrice) * directionMult * pos.leverage;
+            const finalPnl = parseFloat((pos.amount * rawReturn).toFixed(2));
+            const returnedAmount = parseFloat((cost + finalPnl).toFixed(2));
+            
+            // Add return amount back to futures balance
+            setFuturesBalance(prev => ({
+              ...prev,
+              USDT: parseFloat((prev.USDT + Math.max(0, returnedAmount)).toFixed(2))
+            }));
 
-  const handleUpdateConfig = async (newConfig: Partial<MEXCConfig>) => {
-    try {
-      const res = await fetch('/api/mexc/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...mexcConfig, ...newConfig })
+            // Save to closed positions
+            const closedPos: TradePosition = {
+              ...pos,
+              currentPrice: finalPrice,
+              pnl: finalPnl,
+              pnlPercent: parseFloat((rawReturn * 100).toFixed(2)),
+              status: 'CLOSED'
+            };
+
+            setClosedPositions(prev => [closedPos, ...prev]);
+            
+            // Log it
+            addLog("INFO", `انتهى حدث الـ ${mexcConfig.eventDurationMinutes} دقائق: تم إغلاق صفقة ${pos.type} تلقائياً. سعر الإغلاق: $${finalPrice}. الأرباح والخسائر: $${finalPnl} USDT.`);
+          });
+        }
+
+        return remaining;
       });
-      if (res.ok) {
-        const data = await res.json();
-        setMexcConfig(data.config);
-        fetchState();
+    }, 5000);
+
+    return () => clearInterval(checkInterval);
+  }, [btcPrice, mexcConfig.eventDurationMinutes]);
+
+  // Auto reward harvesting simulation (runs every 35 seconds)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (mexcConfig.autoTransferRewards && spotBalance.USDT > 0) {
+        const amountToTransfer = spotBalance.USDT;
+        setSpotBalance(prev => ({ ...prev, USDT: 0 }));
+        setFuturesBalance(prev => ({
+          ...prev,
+          USDT: parseFloat((prev.USDT + amountToTransfer).toFixed(2))
+        }));
+
+        const newLog: RewardTransferLog = {
+          id: `tx_${Date.now()}`,
+          amount: amountToTransfer,
+          asset: "USDT",
+          fromAccount: "Spot Wallet (MEXC Rewards)",
+          toAccount: "Futures Wallet",
+          status: "SUCCESS",
+          timestamp: new Date().toISOString()
+        };
+
+        setRewardLogs(prev => [newLog, ...prev]);
+        addLog("SUCCESS", `تلقائي: تم رصد وتحويل مكافأة بقيمة $${amountToTransfer} USDT إلى محفظة العقود الآجلة بنجاح.`);
+      } else if (Math.random() > 0.8) {
+        // Randomly deposit new rewards in Spot to simulate active earning
+        const randomReward = parseFloat((Math.random() * 15 + 2).toFixed(2));
+        setSpotBalance(prev => ({
+          ...prev,
+          USDT: parseFloat((prev.USDT + randomReward).toFixed(2))
+        }));
+        addLog("INFO", `تم رصد مكافأة ترويجية جديدة بقيمة $${randomReward} USDT في محفظة الفوري (Spot).`);
       }
-    } catch (e) {
-      console.error(e);
-    }
+    }, 35000);
+
+    return () => clearInterval(interval);
+  }, [mexcConfig.autoTransferRewards, spotBalance.USDT]);
+
+  const handleUpdateConfig = (newConfig: Partial<MEXCConfig>) => {
+    const updated = { ...mexcConfig, ...newConfig };
+    setMexcConfig(updated);
+    addLog("INFO", `تم تحديث إعدادات الاتصال وحجم الرافعة المالية لـ Maria Bot (رافعة: ${updated.leverage}x).`);
   };
 
-  const executeOrder = async (type: 'LONG' | 'SHORT') => {
-    try {
-      const res = await fetch('/api/mexc/order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, amount: parseFloat(orderAmount) })
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        alert(`فشل فتح الصفقة: ${err.error}`);
-      }
-      fetchState();
-    } catch (e) {
-      console.error(e);
+  const executeOrder = (type: 'LONG' | 'SHORT') => {
+    const amount = parseFloat(orderAmount);
+    if (!amount || isNaN(amount)) {
+      alert("الرجاء إدخال حجم صفقة صحيح");
+      return;
     }
+
+    const cost = amount / mexcConfig.leverage;
+    if (futuresBalance.USDT < cost) {
+      addLog("ERROR", `فشل فتح صفقة ${type}: الرصيد المتاح غير كافٍ. التكلفة المطلوبة بالرافعة: $${cost.toFixed(2)} USDT.`);
+      alert(`الرصيد في محفظة الآجل غير كافٍ. التكلفة المطلوبة: $${cost.toFixed(2)} USDT`);
+      return;
+    }
+
+    // Deduct cost from futures balance
+    setFuturesBalance(prev => ({
+      ...prev,
+      USDT: parseFloat((prev.USDT - cost).toFixed(2))
+    }));
+
+    const newPosition: TradePosition = {
+      id: `pos_${Date.now()}`,
+      pair: "BTCUSDT",
+      type: type.toUpperCase() as 'LONG' | 'SHORT',
+      entryPrice: btcPrice,
+      currentPrice: btcPrice,
+      amount: amount,
+      leverage: mexcConfig.leverage,
+      pnl: 0.0,
+      pnlPercent: 0.0,
+      timestamp: new Date().toISOString(),
+      status: 'ACTIVE'
+    };
+
+    setActivePositions(prev => [newPosition, ...prev]);
+    addLog("SUCCESS", `تم فتح صفقة عقود آجلة ثنائية لحدث ${mexcConfig.eventDurationMinutes} دقائق: [${type === 'LONG' ? 'أعلى ↗' : 'أدنى ↘'}] لزوج BTCUSDT بسعر دخول $${btcPrice} بالرافعة المالية ${mexcConfig.leverage}x.`);
   };
 
-  const closePosition = async (id: string) => {
-    try {
-      const res = await fetch('/api/mexc/close-position', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id })
-      });
-      fetchState();
-    } catch (e) {
-      console.error(e);
-    }
+  const closePosition = (id: string) => {
+    setActivePositions(prevActive => {
+      const position = prevActive.find(p => p.id === id);
+      if (!position) return prevActive;
+
+      const cost = position.amount / position.leverage;
+      const finalPrice = btcPrice;
+      const priceDiff = finalPrice - position.entryPrice;
+      const directionMult = position.type === 'LONG' ? 1 : -1;
+      const rawReturn = (priceDiff / position.entryPrice) * directionMult * position.leverage;
+      const finalPnl = parseFloat((position.amount * rawReturn).toFixed(2));
+      const returnedAmount = parseFloat((cost + finalPnl).toFixed(2));
+
+      setFuturesBalance(prev => ({
+        ...prev,
+        USDT: parseFloat((prev.USDT + Math.max(0, returnedAmount)).toFixed(2))
+      }));
+
+      const closedPos: TradePosition = {
+        ...position,
+        currentPrice: finalPrice,
+        pnl: finalPnl,
+        pnlPercent: parseFloat((rawReturn * 100).toFixed(2)),
+        status: 'CLOSED'
+      };
+
+      setClosedPositions(prev => [closedPos, ...prev]);
+      addLog("SUCCESS", `تم إغلاق صفقة ${position.type} يدوياً فوراً. الربح/الخسارة المحقق: $${finalPnl} USDT.`);
+
+      return prevActive.filter(p => p.id !== id);
+    });
   };
 
-  const triggerManualTransfer = async () => {
-    try {
-      const res = await fetch('/api/mexc/transfer-rewards', { method: 'POST' });
-      if (!res.ok) {
-        const err = await res.json();
-        alert(err.error);
-      }
-      fetchState();
-    } catch (e) {
-      console.error(e);
+  const triggerManualTransfer = () => {
+    const amountToTransfer = spotBalance.USDT;
+    if (amountToTransfer <= 0) {
+      alert("لا يوجد رصيد مكافآت متاح للتحويل حالياً في حساب الفوري (Spot)");
+      return;
     }
+
+    setSpotBalance(prev => ({ ...prev, USDT: 0 }));
+    setFuturesBalance(prev => ({
+      ...prev,
+      USDT: parseFloat((prev.USDT + amountToTransfer).toFixed(2))
+    }));
+
+    const newLog: RewardTransferLog = {
+      id: `tx_${Date.now()}`,
+      amount: amountToTransfer,
+      asset: "USDT",
+      fromAccount: "Spot Wallet (MEXC Rewards)",
+      toAccount: "Futures Wallet",
+      status: "SUCCESS",
+      timestamp: new Date().toISOString()
+    };
+
+    setRewardLogs(prev => [newLog, ...prev]);
+    addLog("SUCCESS", `يدوي: تم تحويل مكافأة نقدية بقيمة $${amountToTransfer} USDT إلى محفظة العقود الآجلة بنجاح.`);
   };
 
-  const resetBalances = async () => {
-    try {
-      await fetch('/api/mexc/reset-demo', { method: 'POST' });
-      fetchState();
-    } catch (e) {
-      console.error(e);
-    }
+  const resetBalances = () => {
+    setSpotBalance({ USDT: 150.0, BTC: 0.0 });
+    setFuturesBalance({ USDT: 1000.0, BTC: 0.02 });
+    setActivePositions([]);
+    setClosedPositions([]);
+    setRewardLogs([]);
+    addLog("WARNING", "تمت إعادة تعيين أرصدة محفظة التداول الافتراضية والصفقات النشطة.");
   };
 
-  const generateYaml = async () => {
-    try {
-      const res = await fetch('/api/config/generate-yaml', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          branch: gitBranch,
-          appName,
-          packageName,
-          customKeystorePassword: keystorePass,
-          customKeystoreAlias: keystoreAlias
-        })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setActionsYaml(data.yaml);
-      }
-    } catch (e) {
-      console.error(e);
-    }
+  const generateYaml = () => {
+    const yaml = `name: Maria Bot Fast Build & Sign
+
+on:
+  push:
+    branches: [ "${gitBranch}" ]
+
+jobs:
+  build:
+    name: Build & Sign Release Bundle
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Source Code
+      uses: actions/checkout@v4
+
+    - name: Set up Java JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle # تفعيل الكاش لتسريع البناء الفائق لأقل من دقيقة
+
+    - name: Decode and Prepare Keystore
+      run: |
+        echo "\${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/upload-keystore.jks
+
+    - name: Build Release APK & AAB Bundle
+      run: ./gradlew assembleRelease bundleRelease
+      env:
+        CM_KEYSTORE_PASSWORD: \${{ secrets.STORE_PASSWORD }}
+        APP_NAME: "${appName}"
+        PACKAGE_NAME: "${packageName}"
+
+    - name: Upload Finished APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${appName}-Release-APK
+        path: app/build/outputs/apk/release/*.apk
+
+    - name: Upload Finished AAB Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${appName}-Release-AAB
+        path: app/build/outputs/bundle/release/*.aab`;
+    setActionsYaml(yaml);
   };
 
   // Re-generate YAML when inputs change
