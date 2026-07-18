@@ -19,11 +19,16 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3
+    - name: Generate Gradle Wrapper
+      run: gradle wrapper --gradle-version 8.4 --distribution-type all
+
+    - name: Grant Execute Permission for Gradlew
+      run: chmod +x gradlew
 
     - name: Build Android Apps (Debug and Release)
-      run: gradle assembleDebug assembleRelease bundleRelease
+      run: ./gradlew clean assembleDebug assembleRelease bundleRelease --no-daemon --stacktrace --info
+      env:
+        GRADLE_USER_HOME: ${{ runner.temp }}/.gradle
 
     - name: Upload Finished Debug APK (Installable Directly)
       uses: actions/upload-artifact@v4
