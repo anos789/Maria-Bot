@@ -1,0 +1,6 @@
+{
+  "name": "Maria Bot - MEXC Futures & Build Hub",
+  "description": "لوحة تحكم ذكية لتداول العقود الآجلة للأحداث (BTCUSDT)، وتوريد المكافآت تلقائياً على منصة MEXC، وتوليد ملفات بناء أندرويد 15 السريعة لـ GitHub Actions لجهاز LT_9904.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
