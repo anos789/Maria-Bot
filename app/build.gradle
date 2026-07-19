@@ -17,10 +17,41 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        release {
+            def keystoreFile = file("release.keystore")
+            def keystorePassword = System.getenv("CM_KEYSTORE_PASSWORD") ?: ""
+            def keyAlias = System.getenv("CM_KEY_ALIAS") ?: ""
+            def keyPassword = System.getenv("CM_KEYSTORE_PASSWORD") ?: ""
+
+            def keyPropertiesFile = rootProject.file("key.properties")
+            if (keyPropertiesFile.exists()) {
+                def properties = new Properties()
+                properties.load(new FileInputStream(keyPropertiesFile))
+                if (properties.containsKey("storeFile")) {
+                    keystoreFile = file(properties.getProperty("storeFile"))
+                } else if (properties.containsKey("storeFileRelative")) {
+                    keystoreFile = file(properties.getProperty("storeFileRelative"))
+                }
+                keystorePassword = properties.getProperty("storePassword", keystorePassword)
+                keyAlias = properties.getProperty("keyAlias", keyAlias)
+                keyPassword = properties.getProperty("keyPassword", keyPassword)
+            }
+
+            if (keystoreFile.exists() && !keystorePassword.isEmpty() && !keyAlias.isEmpty()) {
+                storeFile keystoreFile
+                storePassword keystorePassword
+                keyAlias keyAlias
+                keyPassword keyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
         }
     }
     compileOptions {
@@ -37,4 +68,7 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }
