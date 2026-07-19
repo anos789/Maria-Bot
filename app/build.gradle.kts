@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -26,8 +29,8 @@ android {
 
             val keyPropertiesFile = rootProject.file("key.properties")
             if (keyPropertiesFile.exists()) {
-                val properties = java.util.Properties()
-                properties.load(java.io.FileInputStream(keyPropertiesFile))
+                val properties = Properties()
+                properties.load(FileInputStream(keyPropertiesFile))
                 if (properties.containsKey("storeFile")) {
                     keystoreFile = file(properties.getProperty("storeFile"))
                 } else if (properties.containsKey("storeFileRelative")) {
