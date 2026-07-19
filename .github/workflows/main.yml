@@ -62,7 +62,7 @@ jobs:
         fi
 
     - name: Run Gradle Lint
-      run: ./gradlew lintDebug --no-daemon
+      run: ./gradlew lint --no-daemon
 
     - name: Run Unit Tests
       run: ./gradlew test --no-daemon

@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "MariaBot"
-include ':app'
+include(":app")
