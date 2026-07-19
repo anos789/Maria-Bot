@@ -20,6 +20,12 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    val keyPropertiesFile = rootProject.file("key.properties")
+    val keystoreProps = Properties()
+    if (keyPropertiesFile.exists()) {
+        keystoreProps.load(FileInputStream(keyPropertiesFile))
+    }
+
     signingConfigs {
         create("release") {
             var keystoreFile = file("release.keystore")
@@ -27,21 +33,14 @@ android {
             var keyAlias = System.getenv("CM_KEY_ALIAS") ?: ""
             var keyPassword = System.getenv("CM_KEYSTORE_PASSWORD") ?: ""
 
-            val keyPropertiesFile = rootProject.file("key.properties")
             if (keyPropertiesFile.exists()) {
-                val properties = Properties()
-                properties.load(FileInputStream(keyPropertiesFile))
-                if (properties.containsKey("storeFile")) {
-                    keystoreFile = file(properties.getProperty("storeFile"))
-                } else if (properties.containsKey("storeFileRelative")) {
-                    keystoreFile = file(properties.getProperty("storeFileRelative"))
-                }
-                keystorePassword = properties.getProperty("storePassword", keystorePassword) ?: ""
-                keyAlias = properties.getProperty("keyAlias", keyAlias) ?: ""
-                keyPassword = properties.getProperty("keyPassword", keyPassword) ?: ""
+                keystoreProps.getProperty("storeFile")?.let { keystoreFile = file(it) }
+                keystoreProps.getProperty("storePassword")?.let { keystorePassword = it }
+                keystoreProps.getProperty("keyAlias")?.let { keyAlias = it }
+                keystoreProps.getProperty("keyPassword")?.let { keyPassword = it }
             }
 
-            if (keystoreFile.exists() && keystorePassword.isNotEmpty() && keyAlias.isNotEmpty()) {
+            if (keystoreFile.exists() && keystorePassword.isNotBlank() && keyAlias.isNotBlank()) {
                 storeFile = keystoreFile
                 storePassword = keystorePassword
                 this.keyAlias = keyAlias
@@ -54,7 +53,9 @@ android {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("release")
+            signingConfigs.findByName("release")?.let { s ->
+                if (s.storeFile != null) signingConfig = s
+            }
         }
     }
     compileOptions {

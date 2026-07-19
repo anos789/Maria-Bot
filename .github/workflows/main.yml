@@ -22,10 +22,10 @@ jobs:
     - name: Checkout Source Code
       uses: actions/checkout@v4
 
-    - name: Set up Java JDK 21
+    - name: Set up Java JDK 17
       uses: actions/setup-java@v4
       with:
-        java-version: '21'
+        java-version: '17'
         distribution: 'temurin'
         cache: 'gradle'
 
@@ -47,25 +47,34 @@ jobs:
       run: gradle wrapper --gradle-version 8.4 --distribution-type all
 
     - name: Grant Execute Permission for Gradlew
-      run: chmod +x gradlew
+      run: chmod +x ./gradlew
 
-    - name: Decode and Prepare Keystore
+    - name: Prepare Keystore and key.properties (use secret or generate temp)
       run: |
+        mkdir -p app
         if [ -n "${{ secrets.CM_KEYSTORE }}" ]; then
+          echo "Using provided keystore secret"
           echo "${{ secrets.CM_KEYSTORE }}" | base64 --decode > app/release.keystore
-        else
-          echo "CM_KEYSTORE is not set, release build won't be signed"
         fi
 
-    - name: Create key.properties
-      run: |
-        if [ -n "${{ secrets.CM_KEYSTORE_PASSWORD }}" ]; then
+        if [ -n "${{ secrets.CM_KEYSTORE_PASSWORD }}" ] && [ -n "${{ secrets.CM_KEY_ALIAS }}" ]; then
           echo "storeFile=release.keystore" > key.properties
           echo "storePassword=${{ secrets.CM_KEYSTORE_PASSWORD }}" >> key.properties
           echo "keyAlias=${{ secrets.CM_KEY_ALIAS }}" >> key.properties
           echo "keyPassword=${{ secrets.CM_KEYSTORE_PASSWORD }}" >> key.properties
         else
-          echo "CM_KEYSTORE_PASSWORD is not set, key.properties not created"
+          echo "Secrets missing — generating temporary keystore for CI"
+          keytool -genkeypair -v \
+            -keystore app/release.keystore \
+            -storepass androidci \
+            -keypass androidci \
+            -alias ci_release \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=CI,O=CI,L=CI,ST=CI,C=CI"
+          echo "storeFile=release.keystore" > key.properties
+          echo "storePassword=androidci" >> key.properties
+          echo "keyAlias=ci_release" >> key.properties
+          echo "keyPassword=androidci" >> key.properties
         fi
 
     - name: Run Gradle Lint
